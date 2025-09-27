@@ -7,15 +7,29 @@ fn main() {
 }
 
 fn add_n(v: Vec<i32>, n: i32) -> Vec<i32> {
-    unimplemented!()
+    let mut ans: Vec<i32> = Vec::new();
+    for i in v.iter() {
+        ans.push(*i + n);
+    }
+    ans
 }
 
 fn add_n_inplace(v: &mut Vec<i32>, n: i32) {
-    unimplemented!()
+    for i in v.iter_mut() {
+        *i += n;
+    }
 }
 
 fn dedup(v: &mut Vec<i32>) {
-    unimplemented!()
+    let mut seen = HashSet::new();
+    let mut i = 0;
+    while i < v.len() {
+        if !seen.insert(v[i]) {  // insert在*i存在时返回false，否则返回true
+            v.remove(i);    // 删除Vec中下标为i的元素
+        } else {
+            i += 1;
+        }
+    }
 }
 
 #[cfg(test)]
