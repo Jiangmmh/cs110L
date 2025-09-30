@@ -142,6 +142,117 @@ Rust如何解决这些问题？
 
 Rust对于这些概念的检查都是在编译时进行的，这也是为什么Rust程序安全性高的原因，即尽可能在程序开发时杜绝可能的安全性问题，而不是在运行时才发现错误。
 
+## Lecture 3 
+
+
+
+
+
+## Lecture 4 Object Oriented Rust
+
+```rust
+// Node节点
+struct Node {
+    val: i32,
+    next: Option<Box<Node>>,  // Box用于使用指针，Option在Rust中作为代替NULL的机制
+}
+
+impl Node {
+  	// 在使用next时，我们不希望将next的所有权交出去，而只是借用
+    fn next(&self) -> Option<&Box<Node>> {
+        self.next.as_ref()
+    }
+}
+
+struct LinkedList {
+    head: Option<Box<Node>>,
+    length: usize,
+}
+
+impl LinkedList {
+    fn new() -> LinkedList {
+        LinkedList{
+            head: None,
+            length: 0
+        }
+    }
+    
+    fn len(&self) -> usize {
+        self.length
+    }
+    
+    // 这里不能返回Optioin<Box<Node>>，因为我们不希望在调用front后，链表节点出现move
+    fn front(&self) -> Option<&Box<Node>> {
+        // 先获取&Option<Box<Node>>，然后使用as_ref转换为Option<&Box<Node>>
+        // 如果head为None，as_ref也会返回None
+        // 这里不需要再使用&了，因为self本身就是一个借用
+        self.head.as_ref()
+    }
+    
+    fn back(&self) -> Option<&Box<Node>> {
+        let mut curr = self.front();
+        while curr.is_some() {
+            let node = curr.unwrap();   // 从Option中取出Box<Node>
+            if node.next.is_none() {    // 如果下一个节点为None，说明当前节点为尾节点
+                return Some(node);
+            }
+            curr = node.next.as_ref();
+        }
+        None
+    }
+    
+    fn front_mut(&mut self) -> Option<&mut Box<Node>> {
+        // 将 &mut Option<Box<Node>>转换为Option<&mut Box<Node>>
+        self.head.as_mut()
+    }
+    
+    fn push_front(&mut self, val: i32) {
+        let mut node = Some(Box::new(Node{ val: val, next: None}));
+        // 将node移动到&mut head中去，返回旧head
+        let old_head = std::mem::replace(&mut self.head, node);
+        self.head.as_mut().unwrap().next = old_head;
+        self.length += 1;
+    }
+    
+    fn display(&self) {
+        // 将 &Option<Box<Node>> 转换为 Option<&Box<Node>>
+        let mut curr: Option<&Box<Node>> = (&self.head).as_ref();
+        while curr.is_some() {
+            print!("{} ", curr.unwrap().val);
+            curr = (&curr.unwrap().next).as_ref();
+        }
+    }
+}
+
+fn main() { 
+    let mut l1 = LinkedList::new();
+    println!("{}", l1.len());
+    l1.push_front(1);
+    println!("Front: {}", l1.front().unwrap().val);
+    println!("Back: {}", l1.back().unwrap().val);
+
+    l1.push_front(2);
+    println!("After adding 2:");
+    println!("Front: {}", l1.front().unwrap().val);
+    println!("Back: {}", l1.back().unwrap().val);
+
+    let node_mut = l1.front_mut();
+    node_mut.unwrap().val = 3;
+    println!("After changing to 3:");
+    println!("Front: {}", l1.front().unwrap().val);
+    println!("Back: {}", l1.back().unwrap().val);
+
+    let node_using_next = l1.front().unwrap().next().unwrap();
+    println!("Testing the `next` function on Node! Second element: {}", node_using_next.val);
+
+    println!("Length after adding: {}", l1.len());
+}
+```
+
+
+
+
+
 # Exercises
 
 ## Week1 Hello world 
@@ -365,9 +476,334 @@ fn word_with_mask(secret_word_chars: &Vec<char>, idx: &Vec<bool>) -> String {
 
 ## Week2 Ownership and structs
 
+### Part1 Ownership short-answer exercises
 
+给出了几个简单的代码片段，让我们判断这些代码能否通过编译，如果不能的话解释原因。
 
+1. 代码片段一：
 
+   ```rust
+   fn main() {
+       let mut s = String::from("hello");
+       let ref1 = &s;
+       let ref2 = &ref1;
+       let ref3 = &ref2;
+       s = String::from("goodbye");
+       println!("{}", ref3.to_uppercase());
+   }
+   ```
+
+   在这段代码中创建了一个String（分配在堆上），然后创建了三个引用（这里是对引用进行引用，形成了多层引用，Rust会在引用被使用时自动进行解引用），然后希望将s的值改为`String("goodbye")，这是无法已通过编译器的，因为在执行完这条语句后，String("hello")将不再被s所有，因此它需要被释放。但是，在后面的代码中还需要使用对于该值的借用ref3，这就导致了在内存释放后访问它，是不允许的。来看看编译器的解释：
+
+   ```shell
+   ~/minghan/rust/cs110l/cs110l-spr-2020-starter-code/warm % cargo build
+      Compiling warm v0.1.0 (/Users/minghan/minghan/rust/cs110l/cs110l-spr-2020-starter-code/warm)
+   warning: value assigned to `s` is never read
+    --> src/main.rs:6:5
+     |
+   6 |     s = String::from("goodbye");
+     |     ^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+   
+   warning: variable does not need to be mutable
+    --> src/main.rs:2:9
+     |
+   2 |     let mut s = String::from("hello");
+     |         ----^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+   
+   error[E0506]: cannot assign to `s` because it is borrowed
+    --> src/main.rs:6:5
+     |
+   3 |     let ref1 = &s;
+     |                -- `s` is borrowed here
+   ...
+   6 |     s = String::from("goodbye");
+     |     ^ `s` is assigned to here but it was already borrowed
+   7 |     println!("{}", ref3.to_uppercase());
+     |                    ---- borrow later used here
+   
+   For more information about this error, try `rustc --explain E0506`.
+   warning: `warm` (bin "warm") generated 2 warnings
+   error: could not compile `warm` (bin "warm") due to 1 previous error; 2 warnings emitted
+   ```
+
+   和我们的想法一致，“cannot assign to `s` because it is borrowed”，即不能在变量的值被借用的情况下为其赋新值。
+
+2. 代码片段二：
+
+   ```rust
+   fn drip_drop() -> &String {
+       let s = String::from("hello world!");
+       return &s;
+   }
+   ```
+
+   这段代码不能通过编译，其在函数中创建一个String s，然后将该String的借用作为返回值返回给调用者。由于s是在函数中创建的，在函数结束后会释放掉String在堆上的内存，然而这里却返回了一个String的借用，可能导致使用已经被释放了的值或多次释放的问题。
+
+   这里应该直接返回String，将所有权从函数的局部作用域转移给调用者的作用域。
+
+   ```rust
+   fn drip_drop() -> String {
+       let s = String::from("hello world!");
+       return s;
+   }
+   ```
+
+3. 代码片段三：
+
+   ```rust
+   fn main() {
+       let s1 = String::from("hello");
+       let mut v = Vec::new();
+       v.push(s1);
+       let s2: String = v[0];
+       println!("{}", s2);
+   }
+   ```
+
+   在定义s2时会出现问题，因为Rust 不允许直接移动 `Vec` 中的元素，避免Vector出现空洞，确保**内存安全**。
+
+### Part2 rdiff
+
+要求我们编写一个简单的命令行工具diff，用于找到两个文件中不同的行。
+
+1. 实现一个根据文件名，打开并读取文件内容，返回每行字符串组成的Vector的函数
+
+   ```rust
+   fn read_file_lines(filename: &String) -> Result<Vec<String>, io::Error> {
+       let mut f = File::open(filename)?;
+       let mut data = vec![];
+   
+       // 创建一个BufReader，然后调用lines返回行迭代器
+       // 每次访问得到一个 io::Result<String>
+       for line in io::BufReader::new(f).lines() {
+           // 使用?将String从Result中拿出来
+           let line_str = line?;
+           data.push(line_str);
+       }
+   
+       Ok(data)
+   }
+   ```
+
+   - 使用`File::open(filename)`打开文件
+   - 通过`io::BufReader::new(f).lines()`获取一个文件中每行字符串的迭代器
+   - 遍历所有行并将其push到data中
+
+2. 完善Grid结构体方法的实现
+
+   ```rust
+   // Grid implemented as flat vector
+   pub struct Grid {
+       num_rows: usize,
+       num_cols: usize,
+       elems: Vec<usize>,
+   }
+   
+   impl Grid {
+       /// Returns a Grid of the specified size, with all elements pre-initialized to zero.
+       pub fn new(num_rows: usize, num_cols: usize) -> Grid {
+           Grid {
+               num_rows: num_rows,
+               num_cols: num_cols,
+               // This syntax uses the vec! macro to create a vector of zeros, initialized to a
+               // specific length
+               // https://stackoverflow.com/a/29530932
+               elems: vec![0; num_rows * num_cols],
+           }
+       }
+   
+       pub fn size(&self) -> (usize, usize) {
+           (self.num_rows, self.num_cols)
+       }
+   
+       /// Returns the element at the specified location. If the location is out of bounds, returns
+       /// None.
+       // #[allow(unused)] // TODO: delete this line when you implement this function
+       pub fn get(&self, row: usize, col: usize) -> Option<usize> {
+           // unimplemented!();
+           // Be sure to delete the #[allow(unused)] line above
+           if row >= self.num_rows && col >= self.num_cols {
+               return None;
+           }
+           Some(self.elems[row * self.num_cols + col])
+       }
+   
+       /// Sets the element at the specified location to the specified value. If the location is out
+       /// of bounds, returns Err with an error message.
+       // #[allow(unused)] // TODO: delete this line when you implement this function
+       pub fn set(&mut self, row: usize, col: usize, val: usize) -> Result<(), &'static str> {
+           // unimplemented!();
+           // Be sure to delete the #[allow(unused)] line above
+           if row >= self.num_rows && col >= self.num_cols {
+               return Err("Row out of bounds");
+           }
+   
+           self.elems[row * self.num_cols + col] = val;
+           Ok(())
+       }
+   
+       /// Prints a visual representation of the grid. You can use this for debugging.
+       pub fn display(&self) {
+           for row in 0..self.num_rows {
+               let mut line = String::new();
+               for col in 0..self.num_cols {
+                   line.push_str(&format!("{}, ", self.get(row, col).unwrap()));
+               }
+               println!("{}", line);
+           }
+       }
+   
+       /// Resets all the elements to zero.
+       pub fn clear(&mut self) {
+           for i in self.elems.iter_mut() {
+               *i = 0;
+           }
+       }
+   }
+   ```
+
+   主要就是get和set方法的实现，没啥困难的地方。
+
+3. 根据伪代码实现LCS
+
+   ```rust
+   fn lcs(seq1: &Vec<String>, seq2: &Vec<String>) -> Grid {
+       // unimplemented!();
+       // Be sure to delete the #[allow(unused)] line above
+       let len1 = seq1.len();
+       let len2 = seq2.len();
+     	
+     	// 创建Grid并初始化
+       let mut grid = Grid::new(len1+1, len2+1);
+       for i in 0..=len1 {
+           grid.set(i, 0, 0).unwrap();
+       }
+       for i in 0..=len2 {
+           grid.set(0, i, 0).unwrap();
+       }
+   	
+     	// DP解决LCS问题
+       for i in 0..len1 {
+           for j in 0..len2 {
+               if seq1[i] == seq2[j] {
+                   grid.set(i + 1,
+                            j + 1,
+                            grid.get(i, j).unwrap()+1).unwrap();
+               } else {
+                   grid.set(i + 1,
+                            j + 1,
+                            cmp::max(
+                                grid.get(i+1, j).unwrap(),
+                                grid.get(i, j+1).unwrap()
+                            )).unwrap();
+               }
+           }
+       }
+       grid
+   }
+   ```
+
+​	LCS问题介绍：
+
+4. 利用LCS来实现diff
+
+   实现的思路：
+
+   ```rust
+   fn print_diff(lcs_table: &Grid, lines1: &Vec<String>, lines2: &Vec<String>, i: usize, j: usize) {
+       // unimplemented!();
+       // Be sure to delete the #[allow(unused)] line above
+       if i > 0 && j > 0 && lines1[i - 1] == lines2[j - 1] {
+           print_diff(lcs_table, lines1, lines2, i-1, j-1);
+           println!(" {}", lines1[i - 1]);
+       } else if j > 0 &&
+           (i == 0 || lcs_table.get(i, j-1).unwrap() >= lcs_table.get(i-1, j).unwrap()) {
+           print_diff(lcs_table, lines1, lines2, i, j-1);
+           println!("> {}", lines2[j - 1]);
+       } else if i > 0 &&
+           (j == 0 || lcs_table.get(i, j-1).unwrap() < lcs_table.get(i-1, j).unwrap()) {
+           print_diff(lcs_table, lines1, lines2, i-1, j);
+           println!("< {}", lines1[i - 1]);
+       } else {
+           println!();
+       }
+   }
+   
+   fn main() {
+       let args: Vec<String> = env::args().collect();
+       if args.len() < 3 {
+           println!("Too few arguments.");
+           process::exit(1);
+       }
+       let filename1 = &args[1];
+       let filename2 = &args[2];
+   
+       // unimplemented!();
+       // Be sure to delete the #[allow(unused)] line above
+       let lines1 = read_file_lines(filename1).unwrap();
+       let lines2 = read_file_lines(filename2).unwrap();
+   
+       let grid = lcs(&lines1, &lines2);
+   
+       print_diff(&grid, &lines1, &lines2, lines1.len(), lines2.len());
+   }
+   ```
+
+### Option rwc
+
+```rust
+use std::{env, io};
+use std::fs::File;
+use std::io::{BufRead, Read};
+use std::process;
+
+fn main() {
+  	// 读取参数
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("Too few arguments.");
+        process::exit(1);
+    }
+    let filename = &args[1];
+
+    // 打开文件
+    let file = File::open(filename).unwrap();
+    let mut reader = io::BufReader::new(file);
+
+    // 初始化计数器
+    let mut cnt_lines = 0;
+    let mut cnt_words = 0;
+    let mut cnt_chs = 0;
+
+    // 读出文件的全部内容到contents中
+    let mut contents = String::new();
+    reader.read_to_string(&mut contents).unwrap();
+
+    cnt_lines = contents.lines().count();
+
+    // split_whitespace按空格、换行分割字符串并返回一个迭代器
+    for word in contents.split_whitespace() {
+        cnt_words += 1;
+        cnt_chs += word.chars().count(); // 这里要使用chars().count()，而不是len()
+    }
+		
+  	// 如果contents为空，行数应当设置为0
+    if contents.is_empty() {
+        cnt_lines = 0;
+    }
+	
+    println!("lines: {}", cnt_lines);
+    println!("words: {}", cnt_words);
+    println!("characters: {}", cnt_chs);
+}
+```
 
 
 
