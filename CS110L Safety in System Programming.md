@@ -64,8 +64,6 @@ char *strncpy(char *destination, const char *source, size_t n);
 
 ## Lecture 2 Memory Safety
 
-
-
 Rust如何解决这些问题？
 
 1. Ownership：所有权
@@ -142,13 +140,197 @@ Rust如何解决这些问题？
 
 Rust对于这些概念的检查都是在编译时进行的，这也是为什么Rust程序安全性高的原因，即尽可能在程序开发时杜绝可能的安全性问题，而不是在运行时才发现错误。
 
-## Lecture 3 
+## Lecture 3 Error Handling
 
+在介绍Rust的错误处理前，要来介绍一下Enum，即枚举类型。
 
+```rust
+enum TrafficLightColor {
+    Red,
+    Yellow,
+    Green,
+}
+
+let current_state: TrafficLightColor = TrafficLightColor::Green;
+```
+
+我们可以通过enum关键字定义枚举类型，其中有很多字段，一个枚举类型的值可以是其中某一个字段。
+
+```rust
+fn drive(light_state: TrafficLightColor) {
+    match light_state {
+        TrafficLightColor::Green => println!("zoom zoom!"),
+        TrafficLightColor::Yellow => println!("slowing down..."),
+        TrafficLightColor::Red => println!("sitting like a boulder!"),
+    }
+}
+```
+
+可以使用match来根据枚举类型变量的字段来做出不同的反应。
+
+```rust
+match light_state {
+    TrafficLightColor::Green => println!("zoom zoom!"),
+    _ => println!("do not pass go"), // default binding
+}
+```
+
+由于match必须是完备的（必须涵盖所有情况），因此可以使用`_`来代替剩余的情况。
+
+```rust
+enum Location {
+    Coordinates(f32, f32),
+    Address(String),
+    Unknown,
+}
+
+let location = Location::Address("353 Jane Stanford Way".to_string());
+
+fn print_location(loc: Location) {
+    match loc {
+        Location::Coordinates(lat, long) => {
+            println!("Person is at ({}, {})", lat, long);
+        },
+      
+        Location::Address(addr) => {
+            println!("Person is at {}", addr);
+        },
+      
+        Location::Unknown => println!("Location unknown!"),
+    }
+}
+```
+
+在Rust中，枚举类型的字段还可以携带值，并且能够在match中获取枚举类型变量中存放的值。
+
+Ok，有了枚举类型的基础，就可以来介绍Rust的错误处理方法了，即Result类型：
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+可以看到Result是一个使用了泛型（后续课程中会学习）的枚举类型，有两个字段Ok和Err，分别携带了类型为T和类型为E的值。
+
+```rust
+fn gen_num_sometimes() -> Result<u32, &'static str> {
+    if get_random_num() > 10 {
+        Ok(get_random_num())
+    } else {
+        Err("Spontaneous failure!")
+    }
+}
+
+fn main() {
+    match gen_num_sometimes() {
+        Ok(num) => println!("Got number: {}", num),
+        Err(message) => println!("Operation failed: {}", message),
+    }
+}
+```
+
+我们可以使Result作为函数的返回值，当程序正确执行时返回携带正确值的`Ok`，否则就返回携带错误信息的`Err`。
+
+```rust
+fn read_file(filename: &str) -> Result<String, io::Error> {
+    let mut s = String::new();
+
+    let result: Result<File, io::Error> = File::open(filename);
+  
+    let mut f: File = match result {
+        Ok(file) => file,
+        Err(e) => return Err(e),
+    };
+
+    match f.read_to_string(&mut s) {
+        Ok(_) => (),
+        Err(e) => return Err(e),
+    };
+
+    return Ok(s);
+}
+```
+
+这是一个更实际的例子，open和read_to_string返回的都是Result，因此需要在调用后使用match来判断是否出错。
+
+```rust
+fn read_file(filename: &str) -> Result<String, io::Error> {
+    let mut s = String::new();
+
+    let mut f = File::open(filename)?;
+
+    f.read_to_string(&mut s)?;
+
+    return Ok(s);
+}
+
+fn read_file(filename: &str) -> String {
+    let mut contents = String::new();
+    File::open(filename)?.read_to_string(&mut contents)?;
+    return contents;
+}
+```
+
+`?`用于简化错误判断，在遇到错误时直接返回Error，否则取出其中的数据
+
+```rust
+let mut file: File = File::open(filename).unwrap();
+let mut file: File = File::open(filename).expect("Failed to open file");
+```
+
+`unwrap`和`expect`和`?`类似，都是用于简化错误判断的，但是区别在于`unwrap`和`expect`在遇到错误时会直接panic，一般用于出现了不可恢复的错误。
+
+由于NULL很容易导致安全问题（ [“billion-dollar mistake”](https://en.wikipedia.org/wiki/Tony_Hoare) ），因此Rust选择不提供NULL，而是通过Option枚举类型来提供相似的功能：
+
+```rust
+enum Option<T> {
+    None,
+    Some(T),
+}
+```
+
+当数据存在时使用Some字段，否则使用None字段，表示NULL。
+
+```rust
+fn feeling_lucky() -> Option<String> {
+    if get_random_num() > 10 {
+        Some(String::from("I'm feeling lucky!"))
+    } else {
+        None
+    }
+}
+
+// 使用match判断是否为空
+match feeling_lucky() {
+    Some(message) => {
+        println!("Got message: {}", message);
+    },
+    None => {
+        println!("No message returned :-/");
+    },
+}
+
+// is_none和is_some方法判断空和非空
+if feeling_lucky().is_none() {
+    println!("Not feeling lucky :(");
+}
+
+// 和Result的处理一样，可以使用unwrap和expect
+let message: String = feeling_lucky().unwrap();
+let message: String = feeling_lucky().expect("feeling_lucky failed us!");
+```
+
+这里介绍了Option的一些使用方法，其实Option还提供了一些方法，如`unwrap_or`等，需要时查看Doc即可。
 
 
 
 ## Lecture 4 Object Oriented Rust
+
+这节课以一个简单单链表的实现为例子，介绍Rust中实现面向对象的方法、进一步运用前面所学的关于Rust的概念。
+
+要实现链表，我们需要一个节点的定义：
 
 ```rust
 // Node节点
@@ -163,12 +345,28 @@ impl Node {
         self.next.as_ref()
     }
 }
+```
 
+next为什么这么复杂？
+
+- next不能为Node，因为会触发递归引用
+- next不能为&Node，因为借用的对象必须有其所有者，一个独立的借用无法通过编译
+
+- OK，那我们使用智能指针Box来装Node就可以了，为什么还要套一层Option？
+  - 因为Rust没有NULL或nullptr这类空对象，因此需要通过Option来作为空指针的标记
+
+这里要实现一个next函数的原因是，我们不希望直接使用next而造成所有权转移。
+
+```rust
 struct LinkedList {
     head: Option<Box<Node>>,
     length: usize,
 }
+```
 
+链表结构体有一个头节点指针和一个长度字段，下面介绍一下LinkedList需要实现的方法：
+
+```rust
 impl LinkedList {
     fn new() -> LinkedList {
         LinkedList{
@@ -216,7 +414,186 @@ impl LinkedList {
     
     fn display(&self) {
         // 将 &Option<Box<Node>> 转换为 Option<&Box<Node>>
-        let mut curr: Option<&Box<Node>> = (&self.head).as_ref();
+        let mut curr = self.front();
+        while curr.is_some() {
+          	let node = curr.unwrap();
+            print!("{} ", node.val);
+            curr = (&node.next).as_ref();
+        }
+    }
+}
+```
+
+- new：创建一个新Node
+- len：返回链表长度
+- front：返回头节点，如果链表为空就返回None
+  - 这里返回值类型为Option<&Box<Node>>，返回引用是为了避免所有权转移
+  - `self.head`的类型为`&Option<Box<Node>>`，使用as_ref将其转换为`Option<&Box<Node>>`
+- back：返回尾节点，如果链表为空就返回None
+  - 注意这里遍历链表的方法
+- front_mut：返回头节点的可变引用
+  - `self.head`的类型为`&mut Option<Box<Node>>`，使用as_mut将其转换为`Option<&mut Box<Node>>`
+- push_front：头插节点
+  - 首先创建一个新节点，将值写入
+  - 将head指向新节点，方法是使用`std::mem::replace`将src（第二个参数）写入desc（第一个参数）中，desc必须为&mut，返回旧dest
+  - 将新head的next指向旧head，链表长度+1
+
+测试一下：
+
+```rust
+fn main() { 
+    let mut l1 = LinkedList::new();
+    println!("{}", l1.len());
+    l1.push_front(1);
+    println!("Front: {}", l1.front().unwrap().val);
+    println!("Back: {}", l1.back().unwrap().val);
+
+    l1.push_front(2);
+    println!("After adding 2:");
+    println!("Front: {}", l1.front().unwrap().val);
+    println!("Back: {}", l1.back().unwrap().val);
+
+    let node_mut = l1.front_mut();
+    node_mut.unwrap().val = 3;
+    println!("After changing to 3:");
+    println!("Front: {}", l1.front().unwrap().val);
+    println!("Back: {}", l1.back().unwrap().val);
+
+    let node_using_next = l1.front().unwrap().next().unwrap();
+    println!("Testing the `next` function on Node! Second element: {}", node_using_next.val);
+
+    println!("Length after adding: {}", l1.len());
+}
+```
+
+## Lecture 5 Traits and Generics
+
+要设计一个优秀的软件，必须要能够区分出系统中可变与不可变的部分，将其中不可变的部分抽取出来复用，而将可变部分留给开发者后续扩展，即满足开闭原则。
+
+这节课介绍了Rust中的两个重要概念Trait和泛型，合理使用它们可以编写出更优秀的软件。
+
+trait用于定义一组函数接口，结构体可以实现这些函数接口，我们可以使用trait作为函数的参数类型，只要传入的实际类型实现了该trait即可（duck type），一个类型实现了一个trait，就告诉我们这个类型提供了哪些接口。
+
+```rust
+// 定义一个 Sizable trait，要求实现者提供一个 size_in_bytes 方法
+trait Sizable {
+    fn size_in_bytes(&self) -> usize;
+}
+
+struct Book {
+    title: String,
+    pages: u32,
+}
+
+// 为 Book 实现 Sizable trait
+impl Sizable for Book {
+    fn size_in_bytes(&self) -> usize {
+        // String 在堆上分配，但这里我们只计算栈上 Book 结构体的大小
+        // 实际应用中，你可能需要加上堆内存的大小
+        std::mem::size_of::<Self>()
+    }
+}
+```
+
+这里定义了一个traits `Sizeable`，它包含了一个函数声明`size_in_bytes`，然后Book结构体实现了该traits，因此所有的Book对象都拥有了`size_in_bytes`方法。
+
+系统定义的一些traits：
+
+- Copy: Will create a new copy of an instance, instead of moving ownership when using assignment (=) 
+- Clone: Will return a new copy of an instance when calling the .clone() function on the method. 
+- Drop: Will define a way to free the memory of an instance - called when the instance reaches the end of the scope. 
+- Display: Defines a way to format a type, and show it (used by println!) 
+- Debug: Similar to Display, though not meant to be user facing (Meant for you to debug your types!) 
+- Eq: Defines a way to determine equality (defined by an equivalence relation) for two objects of the same type. 
+- PartialOrd: Defines a way to compare instances (less than, greater than, less than or equal to, etc.)
+
+我们可以通过编译器宏（macro）`#[derive]` **自动**为类型实现一些通用的 **trait**。
+
+```rust
+#[derive(Clone, Copy, Debug)]
+struct Coordinate {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    let c1 = Coordinate { x: 10, y: 20 };
+    let c2 = c1; // 因为实现了 Copy，这里是复制而不是移动
+    println!("{:?}", c1); // c1 仍然有效
+    
+    let c3 = c1.clone(); // 调用 clone 方法进行深拷贝
+}
+```
+
+
+
+泛型是对同相同逻辑的不同数据类型实现的抽象，通过抽象可以屏蔽数据类型的差异来编写模版代码，在编译时根据实际数据类型生成对应的特化版本，可用于结构体和函数定义中。链表的泛型版本：
+
+```rust
+struct Node<T> {
+    val: T,
+    next: Option<Box<Node<T>>>,  // Option：Some/None
+}
+
+impl<T> Node<T> {
+    fn next(&self) -> Option<&Box<Node<T>>> {
+        self.next.as_ref()
+    }
+}
+
+struct LinkedList<T> {
+    head: Option<Box<Node<T>>>,
+    length: usize,
+}
+
+impl<T: std::fmt::Display> LinkedList<T> {
+    fn new() -> LinkedList<T> {
+        LinkedList{
+            head: None,
+            length: 0
+        }
+    }
+    
+    fn len(&self) -> usize {
+        self.length
+    }
+    
+    // 这里不能返回Optioin<Box<Node>>，因为我们不希望在调用front后，链表节点出现move
+    fn front(&self) -> Option<&Box<Node<T>>> {
+        // 先获取&Option<Box<Node>>，然后使用as_ref转换为Option<&Box<Node>>
+        // 如果head为None，as_ref也会返回None
+        // 这里不需要再使用&了，因为self本身就是一个借用
+        self.head.as_ref()
+    }
+    
+    fn back(&self) -> Option<&Box<Node<T>>> {
+        let mut curr = self.front();
+        while curr.is_some() {
+            let node = curr.unwrap();   // 从Option中取出Box<Node>
+            if node.next.is_none() {    // 如果下一个节点为None，说明当前节点为尾节点
+                return Some(node);
+            }
+            curr = node.next.as_ref();
+        }
+        None
+    }
+    
+    fn front_mut(&mut self) -> Option<&mut Box<Node<T>>> {
+        // 将 &mut Option<Box<Node>>转换为Option<&mut Box<Node>>
+        self.head.as_mut()
+    }
+    
+    fn push_front(&mut self, val: T) {
+        let mut node = Some(Box::new(Node{ val: val, next: None}));
+        // 将node移动到&mut head中去，返回旧head
+        let old_head = std::mem::replace(&mut self.head, node);
+        self.head.as_mut().unwrap().next = old_head;
+        self.length += 1;
+    }
+    
+    fn display(&self) {
+        // 将 &Option<Box<Node>> 转换为 Option<&Box<Node>>
+        let mut curr = (&self.head).as_ref();
         while curr.is_some() {
             print!("{} ", curr.unwrap().val);
             curr = (&curr.unwrap().next).as_ref();
@@ -248,6 +625,14 @@ fn main() {
     println!("Length after adding: {}", l1.len());
 }
 ```
+
+注意在定义LinkedList时，为泛型的类型T加入了trait限定，即只有实现了该trait的类型才能够使用该泛型模版：
+
+```rust
+impl<T: std::fmt::Display> LinkedList<T>
+```
+
+这里的`std::fmt::Display`是一个trait，提供了面向用户的输出接口，如果要使用fmt通过`"{}"`进行输出就需要类型T实现该接口。
 
 
 

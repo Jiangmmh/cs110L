@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/proj-1/deet/Cargo.toml">
+      <package file="$PROJECT_DIR$/proj-1/deet">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/proj-2/balancebeam/Cargo.toml">
+      <package file="$PROJECT_DIR$/proj-2/balancebeam">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week1/part-1-hello-world/Cargo.toml">
+      <package file="$PROJECT_DIR$/week1/part-1-hello-world">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week1/part-2-warmup/Cargo.toml">
+      <package file="$PROJECT_DIR$/week1/part-2-warmup">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week1/part-3-hangman/Cargo.toml">
+      <package file="$PROJECT_DIR$/week1/part-3-hangman">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week2/rdiff/Cargo.toml">
+      <package file="$PROJECT_DIR$/week2/rdiff">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week2/rwc/Cargo.toml">
+      <package file="$PROJECT_DIR$/week2/rwc">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week3/inspect-fds/Cargo.toml">
+      <package file="$PROJECT_DIR$/week3/inspect-fds">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week3/linked_list/Cargo.toml">
+      <package file="$PROJECT_DIR$/week3/linked_list">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week5/farm/Cargo.toml">
+      <package file="$PROJECT_DIR$/week5/farm">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+    <cargoProject FILE="$PROJECT_DIR$/week6/parallel_map/Cargo.toml">
+      <package file="$PROJECT_DIR$/week6/parallel_map">
+        <feature name="default" enabled="true" />
+      </package>
+    </cargoProject>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="ca4d95ac-c8b4-4872-8a6b-621316f90e69" name="更改" comment="">
+      <change beforePath="$PROJECT_DIR$/../CS110L Safety in System Programming.md" beforeDir="false" afterPath="$PROJECT_DIR$/../CS110L Safety in System Programming.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/cs110l-spr-2020-starter-code.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/Makefile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/container" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/samples/count.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/samples/exit.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/samples/function_calls.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/samples/hello.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/samples/segfault.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/samples/sleepy_print.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/src/debugger.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/src/debugger_command.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/src/dwarf_data.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/src/gimli_wrapper.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/src/inferior.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-1/deet/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/src/request.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/src/response.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/01_single_upstream_tests.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/02_multiple_upstream_tests.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/common/balancebeam.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/common/echo_server.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/common/error_server.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/common/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proj-2/balancebeam/tests/common/server.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/Cargo.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/.rustc_info.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/CACHEDIR.TAG" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/.cargo-lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/.fingerprint/warm-b4eae1f44351ed32/bin-warm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/.fingerprint/warm-b4eae1f44351ed32/bin-warm.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/.fingerprint/warm-b4eae1f44351ed32/dep-bin-warm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/.fingerprint/warm-b4eae1f44351ed32/invoked.timestamp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/.fingerprint/warm-b4eae1f44351ed32/output-bin-warm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.1t3jqweicigbdbtgx0bor5cpf.0mf33ho.rcgu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.2mwhsbw83aux7ph4jbrv3t0a6.0mf33ho.rcgu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.3nb0o4uqcklxbe8ndi3thnpyi.0mf33ho.rcgu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.4j7u3byllm805bun3m0aia43v.0mf33ho.rcgu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.52rjmnuq5tq15h4pnlbkc6hf1.0mf33ho.rcgu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.atpal641uronq69wvw6gmm2rf.0mf33ho.rcgu.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/deps/warm-b4eae1f44351ed32.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/1t3jqweicigbdbtgx0bor5cpf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/2mwhsbw83aux7ph4jbrv3t0a6.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/3nb0o4uqcklxbe8ndi3thnpyi.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/4j7u3byllm805bun3m0aia43v.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/52rjmnuq5tq15h4pnlbkc6hf1.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/atpal641uronq69wvw6gmm2rf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx-c10s9ubml1qtu9q4ck8c5xhvf/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl5itc4wj-04nkqnx.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/1t3jqweicigbdbtgx0bor5cpf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/2mwhsbw83aux7ph4jbrv3t0a6.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/3nb0o4uqcklxbe8ndi3thnpyi.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/4j7u3byllm805bun3m0aia43v.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/52rjmnuq5tq15h4pnlbkc6hf1.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/atpal641uronq69wvw6gmm2rf.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/dep-graph.part.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7-working/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/incremental/warm-2i2kg4254r5nf/s-hbl9aahxdg-1eneaa7.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/warm" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/warm/target/debug/warm.d" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-1-hello-world/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-1-hello-world/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-2-warmup/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-2-warmup/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-3-hangman/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-3-hangman/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-3-hangman/words.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week1/part-4.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/ownership.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/handout-a.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/handout-b.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/simple-a.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/simple-b.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/src/grid.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rdiff/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rwc/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rwc/handout-a.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rwc/simple.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/rwc/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week2/survey.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/Makefile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/multi_pipe_test.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/nothing.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/src/open_file.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/src/process.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/src/ps_utils.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/inspect-fds/zombie_test.c" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/linked_list/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/linked_list/src/linked_list.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/linked_list/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week3/survey.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week5/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week5/farm/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week5/farm/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week5/survey.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week6/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week6/parallel_map/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week6/parallel_map/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/week6/survey.txt" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/warmup/src/main.rs" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="XZkaBkNt" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="33OxhM9Cz9dadR2B13TflJorAoe" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Cargo.Run rdiff.executor": "Run",
+    "Cargo.Test grid::test.executor": "Run",
+    "Cargo.Test main::test.executor": "Run",
+    "Cargo.Test test::test_lcs.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/minghan/minghan/rust/cs110l/cs110l-spr-2020-starter-code/week2/rwc",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
+    "org.rust.first.attach.projects": "true",
+    "org.rust.hideNoCargoProjectNotifications/Users/minghan/minghan/rust/cs110l/cs110l-spr-2020-starter-code/warmup/src/main.rs": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/week2/rwc" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Cargo.Run rdiff">
+    <configuration name="Run rdiff" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="buildProfileId" value="dev" />
+      <option name="command" value="run --package rdiff --bin rdiff" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/week2/rdiff" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test grid::test" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="buildProfileId" value="test" />
+      <option name="command" value="test --package rdiff --bin rdiff grid::test" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/week2/rdiff" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test main::test" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="buildProfileId" value="test" />
+      <option name="command" value="test --package rdiff --bin rdiff test" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/week2/rdiff" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test test::test_lcs" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package rdiff --bin rdiff test::test_lcs -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/week2/rdiff" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Cargo.Run rdiff" />
+        <item itemvalue="Cargo.Test main::test" />
+        <item itemvalue="Cargo.Test test::test_lcs" />
+        <item itemvalue="Cargo.Test grid::test" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="ca4d95ac-c8b4-4872-8a6b-621316f90e69" name="更改" comment="" />
+      <created>1759202037805</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1759202037805</updated>
+      <workItem from="1759202039006" duration="11743000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
