@@ -10,8 +10,8 @@ use std::process::Command;
 /// with this (or like this) in your own code.
 #[derive(Debug)]
 pub enum Error {
-    ExecutableError(std::io::Error),
-    OutputFormatError(&'static str),
+    ExecutableError(std::io::Error),  // 执行错误
+    OutputFormatError(&'static str),  // 输出格式错误
 }
 
 // Generate readable representations of Error
@@ -54,12 +54,22 @@ impl From<std::num::ParseIntError> for Error {
 fn parse_ps_line(line: &str) -> Result<Process, Error> {
     // ps doesn't output a very nice machine-readable output, so we do some wonky things here to
     // deal with variable amounts of whitespace.
+
+    // 先剔除左右两侧的空格
     let mut remainder = line.trim();
+
+    // 获取到第一个单词的末尾index
     let first_token_end = remainder
         .find(char::is_whitespace)
         .ok_or(Error::OutputFormatError("Missing second column"))?;
+
+    // 取出第一个单词，转换为usize得到pid
     let pid = remainder[0..first_token_end].parse::<usize>()?;
+
+    // 取出剩余的部分
     remainder = remainder[first_token_end..].trim_start();
+
+    // 同理得到ppid和进程名
     let second_token_end = remainder
         .find(char::is_whitespace)
         .ok_or(Error::OutputFormatError("Missing third column"))?;

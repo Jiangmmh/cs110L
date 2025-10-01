@@ -1190,6 +1190,17 @@ fn main() {
 }
 ```
 
+##  Week3 Error handling, I/O, and traits
+
+
+
+```shell
+$ ps --pid=1880 -o "pid= ppid= command="
+1880   1791  -bash
+```
+
+
+
 
 
 # Projects
