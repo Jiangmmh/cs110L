@@ -1,6 +1,9 @@
 use crate::open_file::OpenFile;
-#[allow(unused)] // TODO: delete this line for Milestone 3
+//#[allow(unused)] // TODO: delete this line for Milestone 3
 use std::fs;
+use std::path::PathBuf;
+use std::io::{self, Read};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Process {
@@ -10,9 +13,32 @@ pub struct Process {
 }
 
 impl Process {
-    #[allow(unused)] // TODO: delete this line for Milestone 1
+    //#[allow(unused)] // TODO: delete this line for Milestone 1
     pub fn new(pid: usize, ppid: usize, command: String) -> Process {
         Process { pid, ppid, command }
+    }
+
+    pub fn print(&self) {
+        match self.list_open_files() {
+            None => println!(
+                "Warning: could not inspect file descriptors for this process! \
+                    It might have exited just as we were about to look at its fd table, \
+                    or it might have exited a while ago and is waiting for the parent \
+                    to reap it."
+            ),
+            Some(open_files) => {
+                println!("========== \"{}\" (pid {}, ppid {}) ==========", self.command, self.pid, self.ppid);
+                for (fd, file) in open_files {
+                    println!(
+                        "{:<4} {:<15} cursor: {:<4} {}",
+                        fd,
+                        format!("({})", file.access_mode),
+                        file.cursor,
+                        file.colorized_name(),
+                    );
+                }
+            }
+        }
     }
 
     /// This function returns a list of file descriptor numbers for this Process, if that
@@ -20,16 +46,47 @@ impl Process {
     /// information will commonly be unavailable if the process has exited. (Zombie processes
     /// still have a pid, but their resources have already been freed, including the file
     /// descriptor table.)
-    #[allow(unused)] // TODO: delete this line for Milestone 3
+    //#[allow(unused)] // TODO: delete this line for Milestone 3
     pub fn list_fds(&self) -> Option<Vec<usize>> {
         // TODO: implement for Milestone 3
-        unimplemented!();
+        // unimplemented!();
+
+        if is_zombie_process(self.pid).ok()? {
+            return None; // 进程是僵尸状态，返回 None
+        }
+
+        // 构建Path
+        let path = PathBuf::from(format!("/proc/{}/fd", self.pid));
+
+        // 创建vec
+        let mut fds = Vec::new();
+        if path.is_dir() {
+            let entries = fs::read_dir(&path).ok()?;
+            for entry_result in entries {
+                let entry = entry_result.ok()?;
+                let filename = entry.file_name();
+
+                if let Some(file_str) = filename.to_str() {
+                    match file_str.parse::<usize>() {
+                        Ok(fd_number) => {
+                            fds.push(fd_number);
+                        }
+                        Err(_) => {
+                        }
+                    }
+                }
+            }
+            Some(fds)
+        } else {
+            None
+        }
     }
 
     /// This function returns a list of (fdnumber, OpenFile) tuples, if file descriptor
     /// information is available (it returns None otherwise). The information is commonly
     /// unavailable if the process has already exited.
-    #[allow(unused)] // TODO: delete this line for Milestone 4
+    // #[allow(unused)] // TODO: delete this line for Milestone 4
+    // 获取当前进程的所有打开文件的OpenFile结构体
     pub fn list_open_files(&self) -> Option<Vec<(usize, OpenFile)>> {
         let mut open_files = vec![];
         for fd in self.list_fds()? {
@@ -38,6 +95,29 @@ impl Process {
         Some(open_files)
     }
 }
+
+
+fn is_zombie_process(pid: usize) -> io::Result<bool> {
+    let status_path = PathBuf::from(format!("/proc/{}/status", pid));
+
+    if !status_path.exists() {
+        return Ok(false);
+    }
+
+    let mut file = fs::File::open(status_path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    for line in contents.lines() {
+        if line.starts_with("State:") {
+            let status_chr = line.trim().chars().nth(7);
+            return Ok(status_chr == Some('Z'));
+        }
+    }
+
+    Ok(false)
+}
+
 
 #[cfg(test)]
 mod test {
