@@ -2400,3 +2400,160 @@ cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/sleepy_print samples/sleep
   }
   ```
 
+**Milestone 1: Run the inferior**
+
+> Your first job is to implement `Inferior::new` to spawn a child process running our target program
+
+任务是实现`Inferior::new方法`，在其中生成一个与运行目标程序的进程。因为我们要编写的是一个调试器，要让父进程能够控制子进程，需要通过`ptrace(PTRACE_TRACEME, ...)`系统调用实现，其用于追踪和控制进程，`PTRACE_TRACEME`表示“允许我的父进程追踪我”。
+
+在类Unix系统中，启动一个新程序需要两个系统调用，fork和exec，前者克隆自身，创建一个与父进程完全相同的子进程，后者将内存空间和执行的代码替换为新程序。ptrace需要在fork和exec之间被调用，这是因为：
+
+- fork之后：确保只有子进程（而不是调试器本身）设置了追踪标记
+- exec之前：确保子进程能够带着“请追踪我”的标记进入新的程序环境，并且能让父进程（调试器）在程序入口点获得控制权。
+
+Rust 启动子进程并等待其完成主要依赖于标准库中的 **`std::process`** 模块，该模块提供了**Command结构体**来配合和启动进程，以及**Child结构体**来管理运行中的进程。
+
+```rust
+pub fn new(target: &str, args: &Vec<String>) -> Option<Inferior> {
+    // TODO: implement me!
+
+    // 1. 创建Command实例
+    let mut command = std::process::Command::new(target);
+
+    // 2. 配置参数和pre_exec勾子
+    let child = unsafe {
+        command
+            .args(args)                    // 配置参数
+            .pre_exec(|| {                 // 配置pre_exec勾子
+                match child_traceme() {
+                    Ok(_) => Ok(()),
+                    Err(e) => return Err(e),
+                }
+            })
+            .spawn()  // 启动子进程，相当于fork+exec，中间插入了pre_exec闭包
+            .ok()?
+    };
+
+    // 3. 子程序在调用exec切换为新程序后，执行入口的第一条指令之前，
+    //      内核会将其停住，并发送SIGTRAP给父进程
+    let child_pid = nix::unistd::Pid::from_raw(child.id() as i32);
+    let inferior = Inferior { child };
+
+    match waitpid(child_pid, None) {
+        // 传统的 SIGTRAP 停止 (对于 exec 停止时可能是这个)
+        Ok(WaitStatus::Stopped(_, signal::Signal::SIGTRAP)) |
+        // 更标准的 exec 停止事件 (PTRACE_EVENT_EXEC)
+        Ok(WaitStatus::PtraceEvent(_, signal::Signal::SIGTRAP, _)) => {
+            // 成功：将 inferior 的所有权转移作为返回值
+            Some(inferior)
+        }
+
+        // 失败或意外停止
+        Ok(status) => {
+            eprintln!("Inferior did not stop with SIGTRAP, instead got: {:?}", status);
+            // inferior 在这里超出作用域，其内部的 child 句柄被 drop，资源句柄关闭。
+            // 进程应该已经停止，不需要手动 kill。
+            None
+        }
+
+        Err(e) => {
+            eprintln!("Waitpid failed: {}", e);
+            // 同样，inferior 句柄被 drop
+            None
+        }
+    }
+}
+```
+
+首先创建一个Command对象实例，target为待调试的可执行程序（inferior）的路径。通过`args`方法传入子进程的参数，`pre_exec`方法传入一个闭包，用于在fork和exec之间调用ptrace，在rust中通过`ptrace::traceme()`来表示`ptrace(PTRACE_TRACEME, ...)`。然后调用`spawn`方法，启动子进程，返回一个包含Child对象的Result，通过ok方法将Result转换为Option，利用`?`取出Child结构体或者返回None。
+
+>  `ptrace(PTRACE_TRACEME, ...)` 本质上只是设置了一个**开关**。真正的“电闸”是 **`exec` 系统调用**。一旦 `exec` 发现这个开关处于开启状态，它就会执行内核预设的“启动调试模式”逻辑：发送 `SIGTRAP` 并停止进程，从而让调试器获得对新程序的初始控制。
+
+调用waitpid等待子进程的信号，如果子进程fork+exec执行成功，会在执行第一条指令前停下，然后发送SIGTRAP信号，如果成功收到该信号就返回Inferior对象，其中包含了Child对象。
+
+在Debugger的run方法中拿到返回的Inferior对象后，应该来执行该子进程了，对子进程执行的控制由Child对象负责。实现一个Inferior的方法cont，让程序从头到尾执行：
+
+```rust
+pub fn cont(&self) -> Result<Status, nix::Error> {
+    // 1. 调用 ptrace::cont，告诉内核让子进程继续执行。
+    //    通常我们传递 None 作为信号参数，告诉内核不要发送额外的信号。
+    //    如果子进程是因断点（SIGTRAP）而停止，ptrace::cont 恢复执行，
+    //    并允许 SIGTRAP 信号传递给进程（但内核通常在恢复时会忽略它）。
+    ptrace::cont(self.pid(), None)?;
+
+    // 2. 阻塞等待子进程的下一个状态变化。
+    //    程序将一直运行，直到遇到下一个断点、单步停止、或正常退出。
+    self.wait(None)
+}
+```
+
+查看nix的文档https://docs.rs/nix/latest/nix/sys/ptrace/index.html：
+
+```rust
+pub fn cont<T: Into<Option<Signal>>>(pid: Pid, sig: T) -> Result<()>
+```
+
+其提供了一个cont方法，作用是让pid指向的进程继续执行。在Inferior的cont方法中调用它，并使用wait方法阻塞等待子进程的状态变化。修改Debugger的run方法，在其中调用cont方法，让子进程执行：
+
+```rust
+pub fn run(&mut self) {
+    loop {
+        match self.get_next_command() {
+            DebuggerCommand::Run(args) => {
+                if let Some(inferior) = Inferior::new(&self.target, &args) {
+                    // Create the inferior
+                    self.inferior = Some(inferior);
+                    
+                    // 调用cont让子进程执行，根据其返回值进行相应处理
+                    let status =  self.inferior.as_mut().unwrap().cont().unwrap();
+                    match status {
+                        Status::Exited(exit_code) => {
+                            println!("Child exited (status {})", exit_code);
+                        },
+                        Status::Signaled(sig) => {
+                            // 报告终止信号，退出循环
+                            eprintln!("[Inferior killed by signal {:?}]", sig);
+                            // break;
+                        },
+                        Status::Stopped(sig, rip) => {
+                            // 处理断点、单步或运行时信号
+                            // 提示用户并接收命令
+                        }
+                    }
+                } else {
+                    println!("Error starting subprocess");
+                }
+            }
+            DebuggerCommand::Quit => {
+                return;
+            }
+        }
+    }
+}
+```
+
+测试一下：
+
+```shell
+minghan@Minghan:~/projs/cs110L/start-code/proj-1/deet$ cargo run samples/sleepy_print
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running `target/debug/deet samples/sleepy_print`
+(deet) r 2
+0
+1
+Child exited (status 0)
+(deet) r 3
+0
+1
+2
+Child exited (status 0)
+```
+
+参考：
+
+- Command：https://doc.rust-lang.org/std/process/struct.Command.html
+
+- Child：https://doc.rust-lang.org/std/process/struct.Child.html
+
+- nix：https://docs.rs/nix/latest/nix/index.html

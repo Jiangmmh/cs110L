@@ -32,6 +32,7 @@ pub struct Inferior {
     child: Child,
 }
 
+
 impl Inferior {
     /// Attempts to start a new inferior process. Returns Some(Inferior) if successful, or None if
     /// an error is encountered.
@@ -42,37 +43,44 @@ impl Inferior {
         let mut command = std::process::Command::new(target);
 
         // 2. 配置参数和pre_exec勾子
-        let child = command
-            .args(args)                    // 配置参数
-            .pre_exec(|| {          // 配置pre_exec勾子
-                match child_traceme() {
-                    Ok(_) => Ok(()),
-                    Err(e) => return Err(e),
-                }
-            })
-            .spawn()  // 启动子进程，相当于fork+exec，中间插入了pre_exec的勾子
-            .ok()?;
+        let child = unsafe {
+            command
+                .args(args)                    // 配置参数
+                .pre_exec(|| {                 // 配置pre_exec勾子
+                    match child_traceme() {
+                        Ok(_) => Ok(()),
+                        Err(e) => return Err(e),
+                    }
+                })
+                .spawn()  // 启动子进程，相当于fork+exec，中间插入了pre_exec的勾子
+                .ok()?
+        };
 
-        // 3. 等待子进程停
-        let inferior = Inferior{ child };
-        match inferior.wait(None) {
-            // SIGTRAP 是调试器与被调试程序之间进行控制权交接和同步的关键信号
-            // 子进程应该是因为SIGTRAP停下的
-            Ok(Status::Stopped(signal::Signal::SIGTRAP, _)) => {
-                Some(Inferior { child })
+        // 3. 子程序在调用exec切换为新程序后，执行入口的第一条指令之前，
+        //      内核会将其停住，并发送SIGTRAP给父进程
+        let child_pid = nix::unistd::Pid::from_raw(child.id() as i32);
+        let inferior = Inferior { child };
+
+        match waitpid(child_pid, None) {
+            // 传统的 SIGTRAP 停止 (对于 exec 停止时可能是这个)
+            Ok(WaitStatus::Stopped(_, signal::Signal::SIGTRAP)) |
+            // 更标准的 exec 停止事件 (PTRACE_EVENT_EXEC)
+            Ok(WaitStatus::PtraceEvent(_, signal::Signal::SIGTRAP, _)) => {
+                // 成功：将 inferior 的所有权转移作为返回值
+                Some(inferior)
             }
 
+            // 失败或意外停止
             Ok(status) => {
                 eprintln!("Inferior did not stop with SIGTRAP, instead got: {:?}", status);
-                // 尝试杀死子进程并返回 None 进行清理
-                let _ = child.kill(); 
+                // inferior 在这里超出作用域，其内部的 child 句柄被 drop，资源句柄关闭。
+                // 进程应该已经停止，不需要手动 kill。
                 None
             }
 
             Err(e) => {
                 eprintln!("Waitpid failed: {}", e);
-                // 尝试杀死子进程并返回 None 进行清理
-                let _ = child.kill(); 
+                // 同样，inferior 句柄被 drop
                 None
             }
         }
@@ -95,5 +103,17 @@ impl Inferior {
             }
             other => panic!("waitpid returned unexpected status: {:?}", other),
         })
+    }
+
+    pub fn cont(&self) -> Result<Status, nix::Error> {
+        // 1. 调用 ptrace::cont，告诉内核让子进程继续执行。
+        //    通常我们传递 None 作为信号参数，告诉内核不要发送额外的信号。
+        //    如果子进程是因断点（SIGTRAP）而停止，ptrace::cont 恢复执行，
+        //    并允许 SIGTRAP 信号传递给进程（但内核通常在恢复时会忽略它）。
+        ptrace::cont(self.pid(), None)?;
+
+        // 2. 阻塞等待子进程的下一个状态变化。
+        //    程序将一直运行，直到遇到下一个断点、单步停止、或正常退出。
+        self.wait(None)
     }
 }
