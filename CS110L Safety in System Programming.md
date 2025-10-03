@@ -161,7 +161,7 @@ fn drive(light_state: TrafficLightColor) {
     match light_state {
         TrafficLightColor::Green => println!("zoom zoom!"),
         TrafficLightColor::Yellow => println!("slowing down..."),
-        TrafficLightColor::Red => println!("sitting like a boulder!"),
+        TrafficLightColor::Red =>println!("sitting like a boulder!"),
     }
 }
 ```
@@ -633,6 +633,218 @@ impl<T: std::fmt::Display> LinkedList<T>
 ```
 
 这里的`std::fmt::Display`是一个trait，提供了面向用户的输出接口，如果要使用fmt通过`"{}"`进行输出就需要类型T实现该接口。
+
+## Lecture 6 Smart Pointer
+
+
+
+
+
+## Lecture 7 MultiProcessing1
+
+这节课的目的是告诉我们在Rust中不要使用**fork**和**pipe**。
+
+首先介绍了在C/C++如何使用fork和exec执行新程序的。在Rust中应当使用`Command::new`来执行新程序：
+
+```rust
+Command::new("ps")
+ .args(&["--pid", &pid.to_string(), "-o", "pid= ppid= command="])
+
+let output = Command::new("ps")
+ .args(&["--pid", &pid.to_string(), "-o", "pid= ppid= command="])
+ .output()
+ .expect("Failed to execute subprocess”)
+```
+
+获取状态：
+
+```rust
+let status = Command::new("ps")
+ .args(&["--pid", &pid.to_string(), "-o", "pid= ppid= command="])
+ .status()
+ .expect("Failed to execute subprocess")
+```
+
+以非阻塞的方式创建子进程：
+
+```rust
+let child = Command::new("ps")
+ .args(&["--pid", &pid.to_string(), "-o", "pid= ppid= command="])
+ .spawn()
+ .expect("Failed to execute subprocess")
+```
+
+然后介绍了使用pipe可能导致的诸多问题：
+
+- Leaked file descriptors 
+
+- Calling close() on bad values 
+
+  - Example: 
+
+    if ( close( fds[1] == -1 ) ) { 
+
+    ​	printf("Error closing!"); 
+
+    } 
+
+- Use-before-pipe (i.e. use of uninitialized ints) 
+
+- Use-after-close
+
+在Rust中使用pipe的方法：
+
+```rust
+let mut child = Command::new("cat")
+ .stdin(Stdio::piped())
+ .stdout(Stdio::piped())
+ .spawn()?;
+
+child.stdin.as_mut().unwrap().write_all(b"Hello, world!\n")?;
+let output = child.wait_with_output()?;
+```
+
+
+
+
+
+## Lecture8 MultiProcessing2
+
+这节课的主题就是，不要使用**signal**！
+
+```c++
+#include <signal.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <iostream>
+
+void handler(int sig) {
+	printf("handler execution.\n");
+	exit(0);
+}
+
+int main() {
+	signal(SIGINT, handler);
+
+	while (true) {
+		sleep(1);
+	}
+
+	return 0;
+}
+```
+
+这是安全的，在运行后会一直等待用户按CTLR- C，用户按下CTLR- C后会执行handler函数，没有任何问题。
+
+```c++
+#include <signal.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <iostream>
+
+static volatile int sigchld_count = 0;
+
+void handler(int sig) {
+	sigchld_count++;
+}
+
+int main() {
+	signal(SIGCHLD, handler);
+	const int num_processes = 10;
+
+	for (int i = 0; i < num_processes; i++) {
+		if (fork() == 0) {
+			sleep(1);
+			exit(0);
+		}
+	}
+
+	while (waitpid(-1, NULL, 0) != -1) {}
+	printf("All %d processes exited, got %d SIGCHLDs.\n", num_processes, sigchld_count);
+	return 0;
+}
+```
+
+这是不安全的，在for循环中，每次循环都fork出一个子进程，睡眠一秒后调用exit退出，内核向父进程发出SIGCHLD信号，父进程接收到信号后执行handler函数，在其中让静态计数器sigchld_count自增，最后输出sigchld_count的值。
+
+`SIGCHLD` 信号是不可靠信号（Unreliable Signal）的一种。它的一个特殊行为是如果在信号被阻塞（或在 `handler` 正在执行）期间，同一个 `SIGCHLD` 信号多次到达，内核通常只会记录该信号**一次**（即信号不会排队），因此可能会出现sigchld_count小于10的情况，多次执行该程序得到的结果不同。
+
+```shell
+~/minghan/courses/test % ./sig2
+All 10 processes exited, got 10 SIGCHLDs.
+~/minghan/courses/test % ./sig2
+All 10 processes exited, got 8 SIGCHLDs.
+~/minghan/courses/test % ./sig2
+All 10 processes exited, got 9 SIGCHLDs.
+```
+
+出现这个问题的原因在于多个子进程同时推出时，父进程还没来得及处理，那么对于多个事件内核只会发送一次SIGCHLD信号。因此我们将waitpid放到hanlder中，并设置WNOHANG参数。通过一个循环调用非阻塞的 `waitpid` 来保证不会丢失任何子进程的退出事件，是健壮和正确的做法。也就是说，即使10个子进程退出事件，只发送了一个SIGCHLD信号，也能过在循环中将所有退出了的僵尸进程处理掉。当然，如果子进程的退出事件不同时发生，而是一个一个来，那么会多次调用handler，这是没有问题的。
+
+```c++
+#include <signal.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <iostream>
+
+static volatile int running_processes = 0;
+
+void handler(int sig) {
+	while (waitpid(-1, NULL, WNOHANG) > 0) {
+		running_processes -= 1;
+	}
+}
+
+int main() {
+	signal(SIGCHLD, handler);
+	const int num_processes = 10;
+	for (int i = 0; i < num_processes; i++) {
+		if (fork() == 0) {
+			sleep(1);
+			exit(0);
+		}
+		running_processes += 1;
+		printf("%d running processes\n", running_processes);
+	}
+
+	while (running_processes > 0) {
+		pause();
+	}
+
+	printf("All processes exited! %d running processes\n", running_processes);
+	return 0;
+}
+```
+
+但这仍然是不安全的，因为对于running_processes的访问是并发不安全的，因为在执行main函数中的`running_processes += 1`的途中，可能会收到SIGCHLD信号，转而去执行handler中的`running_processes -= 1`。
+
+再来看一个例子：
+
+```c++
+#include <signal.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <iostream>
+
+
+void handler(int sig) {
+	printf("Hehe, not existing!\n");
+}
+
+int main() {
+	signal(SIGINT, handler);
+
+	while (true) {
+		printf("Looping...\n");
+		sleep(1);
+	}
+
+	return 0;
+}
+```
+
+这也是不安全的，注意不要在handler中使用printf，有可能会造成死锁。这些例子都是要告诉我们，不要使用signal！！！
+
+最后以Chrome的架构为例，来展示线程和进程的使用，就速度、内存使用、能耗、开发的方便程度和安全性上对进程和线程进行了比较，介绍了多线程的优点。
 
 
 
@@ -1192,11 +1404,712 @@ fn main() {
 
 ##  Week3 Error handling, I/O, and traits
 
+### Part1: Inspecting File Descriptors
 
+这个部分要求我们编写一个检查进程的打开文件的工具（这个工具在CS110中使用过）。
+
+**MileStone1：根据pid或者命令名获取相应的进程信息**
+
+在`ps_utils.rs`中已经提供了相关函数，我们最终只需要使用`get_target`，但是还是来理解一下这是如何实现的：
+
+- parse_ps_line：以来自ps的格式化输出作为参数，从中解析出pid、ppid和命令名，返回Process结构体
+
+  ```rust
+  fn parse_ps_line(line: &str) -> Result<Process, Error> {
+      // ps doesn't output a very nice machine-readable output, so we do some wonky things here to
+      // deal with variable amounts of whitespace.
+  
+      // 先剔除左右两侧的空格
+      let mut remainder = line.trim();
+  
+      // 找到第一个单词的末尾index
+      let first_token_end = remainder
+          .find(char::is_whitespace)
+          .ok_or(Error::OutputFormatError("Missing second column"))?;
+  
+      // 取出第一个单词，转换为usize得到pid
+      let pid = remainder[0..first_token_end].parse::<usize>()?;
+  
+      // 取出剩余的部分
+      remainder = remainder[first_token_end..].trim_start();
+  
+      // 同理得到ppid和命令名
+      let second_token_end = remainder
+          .find(char::is_whitespace)
+          .ok_or(Error::OutputFormatError("Missing third column"))?;
+      let ppid = remainder[0..second_token_end].parse::<usize>()?;
+      remainder = remainder[second_token_end..].trim_start();
+      Ok(Process::new(pid, ppid, String::from(remainder)))
+  }
+  ```
+
+- get_process：根据pid得到Process结构体
+
+  ```rust
+  pub struct Process {
+      pub pid: usize,
+      pub ppid: usize,
+      pub command: String,
+  }
+  
+  fn get_process(pid: usize) -> Result<Option<Process>, Error> {
+      // Run ps to find the specified pid. We use the ? operator to return an Error if executing ps
+      // fails, or if it returns non-utf-8 output. (The extra Error traits above are used to
+      // automatically convert errors like std::io::Error or std::string::FromUtf8Error into our
+      // custom error type.)
+    
+    	// 这里使用标准库 std::process::Command 调用了终端的ps命令
+    	// ps --pid=xxx -o "pid= ppid= command="
+      let output = String::from_utf8(
+          Command::new("ps")
+              .args(&["--pid", &pid.to_string(), "-o", "pid= ppid= command="])
+              .output()?
+              .stdout,
+      )?;
+      // Return Some if the process was found and output parsing succeeds, or None if ps produced no
+      // output (indicating there is no matching process). Note the use of ? to propagate Error if an
+      // error occured in parsing the output.
+      if output.trim().len() > 0 {
+          Ok(Some(parse_ps_line(output.trim())?))
+      } else {
+          Ok(None)
+      }
+  }
+  ```
+
+- get_child_processes：根据pid获取所有子进程的Process结构体
+
+  ```rust
+  pub fn get_child_processes(pid: usize) -> Result<Vec<Process>, Error> {
+    	// ps --ppid=xxx -o "pid= ppid= command="
+      let ps_output = Command::new("ps")
+          .args(&["--ppid", &pid.to_string(), "-o", "pid= ppid= command="])
+          .output()?;
+      let mut output = Vec::new();
+      for line in String::from_utf8(ps_output.stdout)?.lines() {
+          output.push(parse_ps_line(line)?);
+      }
+      Ok(output)
+  }
+  ```
+
+- get_pid_by_command_name：根据命令名获取相关的pid
+
+  ```rust
+  fn get_pid_by_command_name(name: &str) -> Result<Option<usize>, Error> {
+    	// pgrep -xU 0 bash
+      let output = String::from_utf8(
+          Command::new("pgrep")
+              .args(&["-xU", getuid().to_string().as_str(), name])
+              .output()?
+              .stdout,
+      )?;
+      Ok(match output.lines().next() {
+          Some(line) => Some(line.parse::<usize>()?),
+          None => None,
+      })
+  }
+  ```
+
+- get_target：对进程相关查询的抽象，输入可以是pid，也可以是命令名
+
+  ```rust
+  pub fn get_target(query: &str) -> Result<Option<Process>, Error> {
+    	// 根据命令查找pid
+      let pid_by_command = get_pid_by_command_name(query)?;
+      if pid_by_command.is_some() {
+          return get_process(pid_by_command.unwrap());
+      }
+    
+      // If searching for the query as a command name failed, let's see if it's a valid pid
+    	// 如果query不是命令，则尝试将其转换为pid
+      match query.parse() {
+          Ok(pid) => return get_process(pid),
+          Err(_) => return Ok(None),
+      }
+  }
+  ```
+
+先将`src/ps_utils.rs`中与Milestone1相关的`#[allow(unused)]`宏给注释掉，然后修改main.rs：
+
+```rust
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("Usage: {} <name or pid of target>", args[0]);
+        std::process::exit(1);
+    }
+    //#[allow(unused)] // TODO: delete this line for Milestone 1
+    let target = &args[1];
+
+    // TODO: Milestone 1: Get the target Process using psutils::get_target()
+    let process_op = ps_utils::get_target(target).expect("get_target error");
+    let process = match process_op {
+        Some(p) => {
+            println!("Found pid {}", p.pid);
+            p
+        },
+        None => {
+            println!("Target \"{}\" did not match any running PIDs or executables", target);
+            std::process::exit(1);
+        },
+    };
+}
+```
+
+这里的难点在于要理解Rust错误处理的方法，get_target的返回值类型为`Result<Option<Process>, Error>`，根据观察`ps_utils.rs`中返回错误的情况，出错了会通过`?`直接返回错误，如果查找到对应的Process返回`Ok<Some<Process>>`，否则返回`Ok<None>`。
+
+因此错误处理的思路为：
+
+- 对于Err，直接使用expect方法panic即可
+- 使用match来处理Some和None的情况：
+  - Some：输出 "Found pid xxx"
+  - None：输出 Target \"xxx\" did not match any running PIDs or executables，然后调用exit退出
+
+测试：
 
 ```shell
-$ ps --pid=1880 -o "pid= ppid= command="
-1880   1791  -bash
+$ cargo run bash
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running `target/debug/inspect-fds bash`
+Found pid 1880
+
+$ cargo run nonexistent
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running `target/debug/inspect-fds nonexistent`
+Target "nonexistent" did not match any running PIDs or executables
+
+$ cargo test exit_status -- --nocapture --test-threads=1
+running 2 tests
+test test::test_exit_status_invalid_target ... Target "./nonexistent" did not match any running PIDs or executables
+ok
+test test::test_exit_status_valid_target ... Found pid 4104
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+```
+
+**Milestone2：打印进程信息**
+
+在`src/process.rs`中为Process结构体实现一个print方法，按要求输出进程信息：
+
+```rust
+pub fn print(&self) {
+  	println!("========== \"{}\" (pid {}, ppid {}) ==========", self.command, self.pid, self.ppid);
+}
+```
+
+**Milestone3：列出当前进程的全部文件描述符**
+
+在Linux系统中，可以通过`ls /proc/{pid}/fd`来获取进程的全部打开文件信息，`$$`表示当前进程：
+
+```shell
+root@iZbp1812411h4n63wlzx2zZ:start-code# ls -al /proc/$$/fd/
+total 0
+dr-x------ 2 root root  0 Oct  1 17:20 .
+dr-xr-xr-x 9 root root  0 Oct  1 17:20 ..
+lrwx------ 1 root root 64 Oct  1 17:20 0 -> /dev/pts/2
+lrwx------ 1 root root 64 Oct  1 17:20 1 -> /dev/pts/2
+lr-x------ 1 root root 64 Oct  1 17:20 17 -> /dev/urandom
+lrwx------ 1 root root 64 Oct  1 17:20 2 -> /dev/pts/2
+l-wx------ 1 root root 64 Oct  1 17:20 20 -> /root/.cursor-server/data/logs/20251001T165422/ptyhost.log
+l-wx------ 1 root root 64 Oct  1 17:20 21 -> /root/.cursor-server/data/logs/20251001T165422/remoteagent.log
+lrwx------ 1 root root 64 Oct  1 17:20 23 -> /dev/ptmx
+lrwx------ 1 root root 64 Oct  1 17:20 255 -> /dev/pts/2
+```
+
+我们需要实现`list_fds`方法，用于读出当前进程的所有打开文件的fd，如果当前进程为僵尸进程（打开文件已经被释放），则返回None：
+
+```rust
+pub fn list_fds(&self) -> Option<Vec<usize>> {
+    // TODO: implement for Milestone 3
+    // unimplemented!();
+		
+  	// 检查当前进程是否为僵尸进程，如果是就返回None
+    if is_zombie_process(self.pid).ok()? {
+        return None; // 进程是僵尸状态，返回 None
+    }
+    // 构建Path
+    let mut path = PathBuf::from(format!("/proc/{}/fd", self.pid));
+
+    // 创建Vec
+    let mut fds = Vec::new();
+  
+  	// 判断path是否为目录
+    if path.is_dir() {
+        let entries = fs::read_dir(&path).ok()?;
+        for entry_result in entries {
+            let entry = entry_result.ok()?;
+            let filename = entry.file_name();
+
+            if let Some(file_str) = filename.to_str() {
+                match file_str.parse::<usize>() {
+                    Ok(fd_number) => {
+                        fds.push(fd_number);
+                    }
+                    Err(_) => {
+                    }
+                }
+            }
+        }
+        Some(fds)
+    } else {
+        None
+    }
+}
+
+fn is_zombie_process(pid: usize) -> io::Result<bool> {
+    let status_path = PathBuf::from(format!("/proc/{}/status", pid));
+
+    if !status_path.exists() {
+        return Ok(false);
+    }
+
+    let mut file = fs::File::open(status_path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    for line in contents.lines() {
+        if line.starts_with("State:") {
+            let status_chr = line.trim().chars().nth(7);
+            return Ok(status_chr == Some('Z'));
+        }
+    }
+
+    Ok(false)
+}
+```
+
+测试：
+
+```shell
+(base) root@iZbp1812411h4n63wlzx2zZ:inspect-fds# cargo test list_fds
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/main.rs (target/debug/deps/inspect_fds-c7b160ed4863ffd9)
+
+running 2 tests
+test process::test::test_list_fds_zombie ... ok
+test process::test::test_list_fds ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+```
+
+**Milestone4：打印额外的文件信息**
+
+先来看看`src/open_file.rs`中的代码：
+
+```rust
+const O_WRONLY: usize = 00000001;
+const O_RDWR: usize = 00000002;
+const COLORS: [&str; 6] = [
+    "\x1B[38;5;9m",
+    "\x1B[38;5;10m",
+    "\x1B[38;5;11m",
+    "\x1B[38;5;12m",
+    "\x1B[38;5;13m",
+    "\x1B[38;5;14m",
+];
+const CLEAR_COLOR: &str = "\x1B[0m";
+```
+
+定义了一些常量，包括O_WRONLY和O_RDWR等访问模式，颜色编码定义COLORS和清除颜色编码CLEAR_COLOR。
+
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub enum AccessMode {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+impl fmt::Display for AccessMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Match operators are very commonly used with enums in Rust. They function similar to
+        // switch statements in other languages (but can be more expressive).
+        match self {
+            AccessMode::Read => write!(f, "{}", "read"),
+            AccessMode::Write => write!(f, "{}", "write"),
+            AccessMode::ReadWrite => write!(f, "{}", "read/write"),
+        }
+    }
+}
+```
+
+定义了一个枚举类型表示访问权限，包括只读、只写和可读可写，实现了Debug、Clone、PartialEq和Display。
+
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub struct OpenFile {
+    pub name: String,
+    pub cursor: usize,
+    pub access_mode: AccessMode,
+}
+```
+
+定义了一个结构体OpenFile，含有姓名、游标位置和访问权限三个字段。
+
+OpenFile还实现了几个方法：
+
+```rust
+// 创建一个新的OpenFile结构体
+pub fn new(name: String, cursor: usize, access_mode: AccessMode) -> OpenFile {
+    OpenFile {
+        name,
+        cursor,
+        access_mode,
+    }
+}
+
+// 接收一个打开文件的路径，将其转换为更可读的字符串
+fn path_to_name(path: &str) -> String {
+    if path.starts_with("/dev/pts/") {
+        String::from("<terminal>")
+    } else if path.starts_with("pipe:[") && path.ends_with("]") {
+        let pipe_num = &path[path.find('[').unwrap() + 1..path.find(']').unwrap()];
+        format!("<pipe #{}>", pipe_num)
+    } else {
+        String::from(path)
+    }
+}
+
+// 传入/proc/{pid}/fdinfo/{fdnum}中的内容字符串，返回cursor值
+fn parse_cursor(fdinfo: &str) -> Option<usize> {
+    // Regex::new will return an Error if there is a syntactical error in our regular
+    // expression. We call unwrap() here because that indicates there's an obvious problem with
+    // our code, but if this were code for a critical system that needs to not crash, then
+    // we would want to return an Error instead.
+    let re = Regex::new(r"pos:\s*(\d+)").unwrap();
+    Some(
+        re.captures(fdinfo)?
+            .get(1)?
+            .as_str()
+            .parse::<usize>()
+            .ok()?,
+    )
+}
+
+// 传入/proc/{pid}/fdinfo/{fdnum}中的内容字符串，返回访问模式值
+fn parse_access_mode(fdinfo: &str) -> Option<AccessMode> {
+    // Regex::new will return an Error if there is a syntactical error in our regular
+    // expression. We call unwrap() here because that indicates there's an obvious problem with
+    // our code, but if this were code for a critical system that needs to not crash, then
+    // we would want to return an Error instead.
+    let re = Regex::new(r"flags:\s*(\d+)").unwrap();
+    // Extract the flags field and parse it as octal
+    let flags = usize::from_str_radix(re.captures(fdinfo)?.get(1)?.as_str(), 8).ok()?;
+    if flags & O_WRONLY > 0 {
+        Some(AccessMode::Write)
+    } else if flags & O_RDWR > 0 {
+        Some(AccessMode::ReadWrite)
+    } else {
+        Some(AccessMode::Read)
+    }
+}
+
+
+// 返回OpenFile的name字段，如果该文件是Pipe就以彩色字符返回，通过Hash实现相同的Pipe，颜色相同
+pub fn colorized_name(&self) -> String {
+    if self.name.starts_with("<pipe") {
+        let mut hash = DefaultHasher::new();
+        self.name.hash(&mut hash);
+        let hash_val = hash.finish();
+        let color = COLORS[(hash_val % COLORS.len() as u64) as usize];
+        format!("{}{}{}", color, self.name, CLEAR_COLOR)
+    } else {
+        format!("{}", self.name)
+    }
+}
+```
+
+要求实现from_fd方法，根据pid和fd获取对应文件的一些额外信息：
+
+```rust
+pub fn from_fd(pid: usize, fd: usize) -> Option<OpenFile> {
+      // TODO: implement for Milestone 4
+      // unimplemented!();
+  		
+  		// 构造好路径
+      let fd_path = format!("/proc/{}/fd/{}", pid, fd);
+      let fdinfo_path = format!("/proc/{}/fdinfo/{}", pid, fd);
+			
+  		// 使用read_link读取文件的链接名，使用read_to_string读取fdinfo的内容
+      let link_name = fs::read_link(fd_path).ok()?;
+      let fdinfo = fs::read_to_string(fdinfo_path).ok()?;
+			
+  		// 取出OpenFile的三个字段，构造OpenFile并返回
+      let name = OpenFile::path_to_name(&link_name.to_str().unwrap());
+      let cursor = OpenFile::parse_cursor(&fdinfo).unwrap();
+      let access_mode = OpenFile::parse_access_mode(&fdinfo).unwrap();
+      Some(OpenFile::new(name, cursor, access_mode))
+}
+```
+
+测试一下：
+
+```shell
+root@iZbp1812411h4n63wlzx2zZ:inspect-fds# cargo test openfile_from_fd
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.54s
+     Running unittests src/main.rs (target/debug/deps/inspect_fds-c7b160ed4863ffd9)
+
+running 2 tests
+test open_file::test::test_openfile_from_fd_invalid_fd ... ok
+test open_file::test::test_openfile_from_fd ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+```
+
+在能够根据pid和fd获取OpenFile结构体之后，还需要修改一下print方法，让其能够打印全部的fd信息：
+
+```rust	
+pub fn print(&self) {
+  	// 这里使用list_open_files，而不是list_fds
+    match self.list_open_files() {
+        None => println!(
+            "Warning: could not inspect file descriptors for this process! \
+                It might have exited just as we were about to look at its fd table, \
+                or it might have exited a while ago and is waiting for the parent \
+                to reap it."
+        ),
+        Some(open_files) => {
+            println!("========== \"{}\" (pid {}, ppid {}) ==========", self.command, self.pid, self.ppid);
+            for (fd, file) in open_files {
+                println!(
+                    "{:<4} {:<15} cursor: {:<4} {}",
+                    fd,
+                    format!("({})", file.access_mode),
+                    file.cursor,
+                    file.colorized_name(),
+                );
+            }
+        }
+    }
+}
+```
+
+运行一下，查看结果：
+
+```rust
+root@iZbp1812411h4n63wlzx2zZ:inspect-fds# cargo run bash
+   Compiling inspect-fds v0.1.0 (/root/course/cs110L/start-code/week3/inspect-fds)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.96s
+     Running `target/debug/inspect-fds bash`
+Found pid 10806
+========== "bash" (pid 10806, ppid 1) ==========
+0    (read)          cursor: 0    <pipe #145237>
+1    (write)         cursor: 0    <pipe #145238>
+2    (write)         cursor: 0    <pipe #145239>
+```
+
+```shell
+root@iZbp1812411h4n63wlzx2zZ:inspect-fds# ./zombie_test & cargo run zombie_test
+[1] 34925
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running `target/debug/inspect-fds zombie_test`
+Found pid 34925
+========== "./zombie_test" (pid 34925, ppid 30445) ==========
+0    (read/write)    cursor: 0    <terminal>
+1    (read/write)    cursor: 0    <terminal>
+2    (read/write)    cursor: 0    <terminal>
+4    (write)         cursor: 0    <pipe #527124>
+Warning: could not inspect file descriptors for this process! It might have exited just as we were about to look at its fd table, or it might have exited a while ago and is waiting for the parent to reap it.
+```
+
+**Milestone 5: 打印子进程的打开文件信息**
+
+在`src/ps_utils.rs`中已经实现了get_child_processes函数，可以根据pid找到所有子进程，并返回Process结构体。我们只需要在main.rs中调用它并通过print方法输出所有子进程的打开文件信息即可：
+
+```rust
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("Usage: {} <name or pid of target>", args[0]);
+        std::process::exit(1);
+    }
+    //#[allow(unused)] // TODO: delete this line for Milestone 1
+    let target = &args[1];
+
+    // TODO: Milestone 1: Get the target Process using psutils::get_target()
+    let process_op = ps_utils::get_target(target).expect("get_target error");
+    let process = match process_op {
+        Some(p) => {
+            println!("Found pid {}", p.pid);
+            p
+        },
+        None => {
+            println!("Target \"{}\" did not match any running PIDs or executables", target);
+            std::process::exit(1);
+        },
+    };
+    process.print();
+		
+  	// 输出子进程的全部打开文件信息
+    let child_processes = ps_utils::get_child_processes(process.pid).expect("get_child_processes error");
+    for p in child_processes {
+        p.print();
+    }
+}
+```
+
+```shell
+root@iZbp1812411h4n63wlzx2zZ:inspect-fds# ./multi_pipe_test & cargo run multi_pipe_test
+[1] 35675
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running `target/debug/inspect-fds multi_pipe_test`
+Found pid 35675
+========== "./multi_pipe_test" (pid 35675, ppid 30445) ==========
+0    (read/write)    cursor: 0    <terminal>
+1    (read/write)    cursor: 0    <terminal>
+2    (read/write)    cursor: 0    <terminal>
+4    (write)         cursor: 0    <pipe #539517>
+5    (read)          cursor: 0    <pipe #539518>
+========== "./multi_pipe_test" (pid 35677, ppid 35675) ==========
+0    (read)          cursor: 0    <pipe #539517>
+1    (write)         cursor: 0    <pipe #539518>
+2    (read/write)    cursor: 0    <terminal>
+```
+
+### Part3 Generic LinkedList
+
+这部分要求我们做两件事，将LinkedList改写为泛型版本和实现Display、Drop、Clone、PartialEq、Iterator、IntoIterator，根据文档中要求实现相应方法即可。
+
+```rust
+use std::fmt;
+use std::option::Option;
+
+pub struct LinkedList<T> {
+    head: Option<Box<Node<T>>>,
+    size: usize,
+}
+
+struct Node<T> {
+    value: T,
+    next: Option<Box<Node<T>>>,
+}
+
+impl<T> Node<T> {
+    pub fn new(value: T, next: Option<Box<Node<T>>>) -> Node<T> {
+        Node { value, next }
+    }
+}
+
+impl<T> LinkedList<T> {
+    pub fn new() -> LinkedList<T> {
+        LinkedList { head: None, size: 0 }
+    }
+
+    pub fn get_size(&self) -> usize {
+        self.size
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    pub fn push_front(&mut self, value: T) {
+        let new_node = Box::new(Node::new(value, self.head.take()));
+        self.head = Some(new_node);
+        self.size += 1;
+    }
+
+    pub fn pop_front(&mut self) -> Option<T> {
+        self.head.take().map(|node| {
+            self.head = node.next;
+            self.size -= 1;
+            node.value
+        })
+    }
+}
+
+impl<T: fmt::Display> fmt::Display for LinkedList<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut current = &self.head;
+        let mut first = true;
+        write!(f, "[")?;
+        while let Some(node) = current {
+            if !first {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", node.value)?;
+            current = &node.next;
+            first = false;
+        }
+        write!(f, "]")
+    }
+}
+
+impl<T> Drop for LinkedList<T> {
+    fn drop(&mut self) {
+        let mut current = self.head.take();
+        while let Some(mut node) = current {
+            current = node.next.take();
+        }
+    }
+}
+
+impl<T: Clone> Clone for LinkedList<T> {
+    fn clone(&self) -> Self {
+        let mut values = Vec::new();
+        let mut current = &self.head;
+        while let Some(node) = current {
+            values.push(node.value.clone());
+            current = &node.next;
+        }
+        let mut new_list = LinkedList::new();
+        for value in values.into_iter().rev() {
+            new_list.push_front(value);
+        }
+        new_list
+    }
+}
+
+impl<T: PartialEq> PartialEq for LinkedList<T> {
+    fn eq(&self, other: &Self) -> bool {
+        let mut a = &self.head;
+        let mut b = &other.head;
+        while let (Some(node_a), Some(node_b)) = (a, b) {
+            if node_a.value != node_b.value {
+                return false;
+            }
+            a = &node_a.next;
+            b = &node_b.next;
+        }
+        a.is_none() && b.is_none()
+    }
+}
+
+// 由于ComputeNorm trait未定义，这里注释掉相关实现
+// impl<T> ComputeNorm for LinkedList<T> {
+//     fn compute_norm(&self) -> T {
+//         let mut current = self.head.clone();
+//         let mut norm = T::default();
+//         while let Some(node) = current {
+//             norm += node.value.clone();
+//             current = node.next.clone();
+//         }
+//         norm
+//     }
+// }
+
+// 不要为LinkedList实现Iterator trait，否则会与标准库的IntoIterator实现冲突
+// 可以实现一个专用的迭代器
+pub struct LinkedListIntoIter<T> {
+    list: LinkedList<T>,
+}
+
+impl<T> Iterator for LinkedListIntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.list.pop_front()
+    }
+}
+
+impl<T> IntoIterator for LinkedList<T> {
+    type Item = T;
+    type IntoIter = LinkedListIntoIter<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        LinkedListIntoIter { list: self }
+    }
+}
 ```
 
 
@@ -1204,4 +2117,286 @@ $ ps --pid=1880 -o "pid= ppid= command="
 
 
 # Projects
+
+## Project1 The DEET Debugger
+
+在这个Project中，我们将在start code的基础上实现一个简化版本的调试器。先来看下目录结构体：
+
+```shell
+deet
+├── Cargo.lock
+├── Cargo.toml
+├── container
+├── Dockerfile
+├── Makefile
+├── samples			
+│   ├── count.c
+│   ├── exit.c
+│   ├── function_calls.c
+│   ├── hello.c
+│   ├── segfault.c
+│   └── sleepy_print.c
+├── src
+│   ├── debugger_command.rs
+│   ├── debugger.rs
+│   ├── dwarf_data.rs
+│   ├── gimli_wrapper.rs
+│   ├── inferior.rs
+│   └── main.rs
+```
+
+src目录下DEET相关的文件，而samples目录中是一些使用C编写的测试程序，作为inferior。
+
+>在调试器（Debugger）的语境中，**inferior**（中文常译为“被调试者” 或 “从属进程”）指的是**正在被调试器控制和检查的程序或进程**。
+>
+>- **调试器 (Debugger)**：是**主控**程序（Supervisor）。它负责设置断点、检查变量、控制程序执行（步进/继续）。
+>
+>- **被调试者 (Inferior)**：是**从属**程序（Inferior）。它是你编写的、正在运行的实际应用程序或进程。
+
+在开始前需要使用make将samples中的程序编译成可执行文件：
+
+```shell
+root@iZbp1812411h4n63wlzx2zZ:deet# make
+cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/count samples/count.c
+cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/exit samples/exit.c
+cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/function_calls samples/function_calls.c
+cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/hello samples/hello.c
+cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/segfault samples/segfault.c
+cc  -O0 -g -no-pie -fno-omit-frame-pointer -o samples/sleepy_print samples/sleepy_print.c
+```
+
+先来熟悉一下启动代码：
+
+- main.rs
+
+  先对参数进行解析，获取inferior的路径；值得注意的是unsafe中的内容，调用了`nix::sys::signal`模块中的函数`signal`，对应POSIX系统调用`signal`，`Signal::SIGINT`表示中断信号（在中断通常由Ctrl+C产生），`SigHandler::SigIgn`代表忽略信号，即告诉操作系，当接收到SIGINT信号时什么也不做，目的是**禁用（忽略）当前调试器进程对 `Ctrl+C` 信号（即 `SIGINT`）的处理**。；使用 `unsafe` 块是告诉开发者：“这里我们正在执行一个可能不安全的底层操作，你必须确保它符合操作系统的约束和行为，并且不会破坏 Rust 的内存安全保证。”
+
+  最后new了一个Debugger对象，并执行run方法。
+
+  ```rust
+  mod debugger;
+  mod debugger_command;
+  mod inferior;
+  
+  use crate::debugger::Debugger;
+  use nix::sys::signal::{signal, SigHandler, Signal};
+  use std::env;
+  
+  fn main() {
+      // 解析命令行参数
+      let args: Vec<String> = env::args().collect();
+      if args.len() != 2 {
+          println!("Usage: {} <target program>", args[0]);
+          std::process::exit(1);
+      }
+    
+      // 目标程序（inferior）路径
+      let target = &args[1];
+  
+      // Disable handling of ctrl+c in this process (so that ctrl+c only gets delivered to child
+      // processes)
+      unsafe { signal(Signal::SIGINT, SigHandler::SigIgn) }.expect("Error disabling SIGINT handling");
+  
+      Debugger::new(target).run();
+  }
+  ```
+
+- debugger.rs
+
+  Debugger结构体，字段有inferior的路径、历史路径、Editor对象和Inferior对象
+
+  ```rust
+  use crate::debugger_command::DebuggerCommand;
+  use crate::inferior::Inferior;
+  use rustyline::error::ReadlineError;
+  use rustyline::Editor;
+  
+  pub struct Debugger {
+      target: String,
+      history_path: String,
+      readline: Editor<()>,
+      inferior: Option<Inferior>,
+  }
+  ```
+
+  new方法，其中使用了`rustyline::Editor`（一个强大的命令行编辑器库，提供命令行编辑、历史记录和自动补全功能），历史命令保存在`$(HOME)/.deet_history`中，new方法中会从`$(HOME)/.deet_history`中加载历史信息，并保存在`readline`中。
+
+  ```rust
+  pub fn new(target: &str) -> Debugger {
+      // TODO (milestone 3): initialize the DwarfData
+      let history_path = format!("{}/.deet_history", std::env::var("HOME").unwrap());
+      let mut readline = Editor::<()>::new();
+      // Attempt to load history from ~/.deet_history if it exists
+      let _ = readline.load_history(&history_path);
+  
+      Debugger {
+          target: target.to_string(),
+          history_path,
+          readline,
+          inferior: None,
+      }
+  }
+  ```
+
+  get_next_command方法，每次循环在命令行中打印提示`(deet) `，等待用户输入一行命令，如果出错就进行处理；如果输入成功，先对字符串两侧剔除多余空格，将该命令加入到历史命令中去并写入`$(HOME)/.deet_history`文件， 通过`split_whitespace`方法根据空格符对命令进行分割，使用`DebuggerCommand::from_tokens`方法从中获取命令并返回。
+
+  ```rust
+  fn get_next_command(&mut self) -> DebuggerCommand {
+      loop {
+          // Print prompt and get next line of user input
+          match self.readline.readline("(deet) ") {
+              Err(ReadlineError::Interrupted) => {
+                  // User pressed ctrl+c. We're going to ignore it
+                  println!("Type \"quit\" to exit");
+              }
+              Err(ReadlineError::Eof) => {
+                  // User pressed ctrl+d, which is the equivalent of "quit" for our purposes
+                  return DebuggerCommand::Quit;
+              }
+              Err(err) => {
+                  panic!("Unexpected I/O error: {:?}", err);
+              }
+              Ok(line) => {
+                  if line.trim().len() == 0 {
+                      continue;
+                  }
+                  self.readline.add_history_entry(line.as_str());
+                  if let Err(err) = self.readline.save_history(&self.history_path) {
+                      println!(
+                          "Warning: failed to save history file at {}: {}",
+                          self.history_path, err
+                      );
+                  }
+                  let tokens: Vec<&str> = line.split_whitespace().collect();
+                  if let Some(cmd) = DebuggerCommand::from_tokens(&tokens) {
+                      return cmd;
+                  } else {
+                      println!("Unrecognized command.");
+                  }
+              }
+          }
+      }
+  }
+  ```
+
+  run方法，每次循环都从get_next_command取得一个命令，如果成功就创建一个Inferior对象，并执行对应逻辑
+
+  ```rust
+  pub fn run(&mut self) {
+      loop {
+          match self.get_next_command() {
+              DebuggerCommand::Run(args) => {
+                  if let Some(inferior) = Inferior::new(&self.target, &args) {
+                      // Create the inferior
+                      self.inferior = Some(inferior);
+                      // TODO (milestone 1): make the inferior run
+                      // You may use self.inferior.as_mut().unwrap() to get a mutable reference
+                      // to the Inferior object
+                  } else {
+                      println!("Error starting subprocess");
+                  }
+              }
+              DebuggerCommand::Quit => {
+                  return;
+              }
+          }
+      }
+  }
+  ```
+
+- debugger_command.rs
+
+  枚举类型DebuggerCommand有两个字段，Quit（表示退出）和Run（表示执行命令，其中包含了一个String Vector，存放参数）；如果用户命令为q或quit就返回Quit，否则返回Run。
+
+  ```rust
+  pub enum DebuggerCommand {
+      Quit,
+      Run(Vec<String>),
+  }
+  
+  impl DebuggerCommand {
+      pub fn from_tokens(tokens: &Vec<&str>) -> Option<DebuggerCommand> {
+          match tokens[0] {
+              "q" | "quit" => Some(DebuggerCommand::Quit),
+              "r" | "run" => {
+                  let args = tokens[1..].to_vec();
+                  Some(DebuggerCommand::Run(
+                      args.iter().map(|s| s.to_string()).collect(),
+                  ))
+              }
+              // Default case:
+              _ => None,
+          }
+      }
+  }
+  ```
+
+- inferior.rs：
+
+  定义了一个枚举类型Status，三个字段分别为Stopped（暂停，包含使之暂停的信号和当前IP）、Exited（正常退出，包含返回值）和Signaled（因为信号而退出，包含使之退出的信号）
+
+  ```rust
+  use nix::sys::ptrace;
+  use nix::sys::signal;
+  use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
+  use nix::unistd::Pid;
+  use std::process::Child;
+  
+  pub enum Status {
+      /// Indicates inferior stopped. Contains the signal that stopped the process, as well as the
+      /// current instruction pointer that it is stopped at.
+      Stopped(signal::Signal, usize),
+  
+      /// Indicates inferior exited normally. Contains the exit status code.
+      Exited(i32),
+  
+      /// Indicates the inferior exited due to a signal. Contains the signal that killed the
+      /// process.
+      Signaled(signal::Signal),
+  }
+  ```
+
+  Inferior结构体，有一个字段child，实现了三个方法：
+
+  - new，创建一个新的Inferior对象
+  - pid，返回当前进程的pid
+  - wait，调用waitpid，返回Status
+
+  ```rust
+  pub struct Inferior {
+      child: Child,
+  }
+  
+  impl Inferior {
+      /// Attempts to start a new inferior process. Returns Some(Inferior) if successful, or None if
+      /// an error is encountered.
+      pub fn new(target: &str, args: &Vec<String>) -> Option<Inferior> {
+          // TODO: implement me!
+          println!(
+              "Inferior::new not implemented! target={}, args={:?}",
+              target, args
+          );
+          None
+      }
+  
+      /// Returns the pid of this inferior.
+      pub fn pid(&self) -> Pid {
+          nix::unistd::Pid::from_raw(self.child.id() as i32)
+      }
+  
+      /// Calls waitpid on this inferior and returns a Status to indicate the state of the process
+      /// after the waitpid call.
+      pub fn wait(&self, options: Option<WaitPidFlag>) -> Result<Status, nix::Error> {
+          Ok(match waitpid(self.pid(), options)? {
+              WaitStatus::Exited(_pid, exit_code) => Status::Exited(exit_code),
+              WaitStatus::Signaled(_pid, signal, _core_dumped) => Status::Signaled(signal),
+              WaitStatus::Stopped(_pid, signal) => {
+                  let regs = ptrace::getregs(self.pid())?;
+                  Status::Stopped(signal, regs.rip as usize)
+              }
+              other => panic!("waitpid returned unexpected status: {:?}", other),
+          })
+      }
+  }
+  ```
 
