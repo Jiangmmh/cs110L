@@ -7,11 +7,14 @@ use nix::sys::signal::{signal, SigHandler, Signal};
 use std::env;
 
 fn main() {
+    // 解析命令行参数
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: {} <target program>", args[0]);
         std::process::exit(1);
     }
+
+    // 目标程序（inferior）路径
     let target = &args[1];
 
     // Disable handling of ctrl+c in this process (so that ctrl+c only gets delivered to child
